@@ -1,82 +1,43 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # SHL Assessment Recommender — Dockerfile
 #
-# Build strategy:
-#   Stage 1 (builder): Install Python deps into /install (avoids re-downloading
-#                      on each build by exploiting Docker layer cache).
-#   Stage 2 (runtime): Slim image with only what's needed to run.
-#
-# Cold-start optimization:
-#   - sentence-transformers model (all-MiniLM-L6-v2, ~22MB) is downloaded at
-#     BUILD TIME into /app/model_cache. This means the free-tier Render dyno
-#     wakes up cold but doesn't need to download the model — just loads from disk.
-#   - FAISS index is built in-memory at startup (~2-3s for 60 items). Too small
-#     to pre-build; simpler to rebuild on each cold start.
-#
-# Image size target: ~900MB (sentence-transformers + torch CPU dominate).
+# Designed for Render.com free tier (512MB RAM).
+# Uses scikit-learn TF-IDF instead of sentence-transformers+torch.
+# Total image size: ~250MB (vs ~900MB with torch).
+# Cold start: ~2s (TF-IDF matrix fit on 57 items).
 # ─────────────────────────────────────────────────────────────────────────────
 
-FROM python:3.11-slim AS builder
-
-WORKDIR /install
-
-# System deps needed for lxml, faiss
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libgomp1 \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install --prefix=/install/packages --no-cache-dir -r requirements.txt
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Runtime stage
-# ─────────────────────────────────────────────────────────────────────────────
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Runtime system deps
+# System deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgomp1 \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy installed packages from builder
-COPY --from=builder /install/packages /usr/local
+# Install Python deps first (layer cache)
+COPY requirements.txt .
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy application
 COPY app/ ./app/
 COPY data/ ./data/
-COPY scripts/ ./scripts/
 
-# Pre-download sentence-transformer model at build time
-# This avoids downloading on cold start (critical for 30s timeout compliance)
-RUN python -c "\
-from sentence_transformers import SentenceTransformer; \
-model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2', cache_folder='/app/model_cache'); \
-print('Model cached at /app/model_cache')"
-
-# Set model cache env so retriever finds it
-ENV SENTENCE_TRANSFORMERS_HOME=/app/model_cache
-ENV HF_HOME=/app/model_cache
-
-# Application config
+# Config
 ENV CATALOG_PATH=/app/data/catalog.json
-ENV PORT=8000
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# Non-root user for security
+# Non-root user
 RUN useradd --create-home appuser && chown -R appuser /app
 USER appuser
 
 EXPOSE 8000
 
-# Health check — allows 2 minutes for cold start per spec
 HEALTHCHECK --interval=15s --timeout=10s --start-period=120s --retries=3 \
-    CMD python -c "import httpx; r=httpx.get('http://localhost:8000/health'); exit(0 if r.status_code==200 else 1)"
+    CMD python -c "import urllib.request; r=urllib.request.urlopen('http://localhost:8000/health',timeout=8); exit(0 if r.status==200 else 1)"
 
-# Use shell form so $PORT env variable is expanded (required for Render.com)
+# Shell form so $PORT env var is expanded (required for Render.com)
 CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --timeout-keep-alive 30 --log-level info
