@@ -78,9 +78,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=10s --start-period=120s --retries=3 \
     CMD python -c "import httpx; r=httpx.get('http://localhost:8000/health'); exit(0 if r.status_code==200 else 1)"
 
-CMD ["uvicorn", "app.main:app", \
-     "--host", "0.0.0.0", \
-     "--port", "8000", \
-     "--workers", "1", \
-     "--timeout-keep-alive", "30", \
-     "--log-level", "info"]
+# Use shell form so $PORT env variable is expanded (required for Render.com)
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --timeout-keep-alive 30 --log-level info
