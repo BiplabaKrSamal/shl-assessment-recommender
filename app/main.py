@@ -129,7 +129,8 @@ async def add_timing(request: Request, call_next):
 @app.get("/debug")
 async def debug():
     """Diagnose Gemini API connectivity — remove before production."""
-    import google.generativeai as genai_debug
+    from google import genai as genai_debug
+    from google.genai import types as gtypes
     key = os.getenv("GEMINI_API_KEY", "").strip()
     result = {
         "key_set": bool(key),
@@ -139,9 +140,11 @@ async def debug():
     }
     if key:
         try:
-            genai_debug.configure(api_key=key)
-            model = genai_debug.GenerativeModel("gemini-1.5-flash")
-            resp = model.generate_content("Say OK")
+            c = genai_debug.Client(api_key=key)
+            resp = c.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=[gtypes.Content(role="user", parts=[gtypes.Part(text="Say OK")])],
+            )
             result["gemini_test"] = "SUCCESS"
             result["response"] = resp.text[:100]
         except Exception as e:
