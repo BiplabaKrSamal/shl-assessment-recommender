@@ -120,6 +120,21 @@ async def add_timing(request: Request, call_next):
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+@app.get("/")
+async def root():
+    """Root endpoint — confirms service is running."""
+    return {
+        "service": "SHL Assessment Recommender",
+        "version": "1.0.0",
+        "status": "running",
+        "endpoints": {
+            "health": "/health",
+            "chat": "/chat",
+            "docs": "/docs"
+        }
+    }
+
+
 @app.get("/health")
 async def health():
     """
