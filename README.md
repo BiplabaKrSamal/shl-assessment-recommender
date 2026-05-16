@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Gemini](https://img.shields.io/badge/LLM-Gemini%201.5%20Flash-4285F4?logo=google&logoColor=white)](https://ai.google.dev)
+[![Groq](https://img.shields.io/badge/LLM-Groq%20Llama%203.3%2070B-F55036?logo=groq&logoColor=white)](https://console.groq.com)
 [![FAISS](https://img.shields.io/badge/Vector%20Store-FAISS-blue)](https://github.com/facebookresearch/faiss)
 [![Tests](https://img.shields.io/badge/Tests-35%20cases-brightgreen)](tests/test_full.py)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -31,7 +31,7 @@ POST /chat (full stateless history)
       ├─ Guard layer (regex, no LLM): injection / off-topic / turn-cap
       ├─ Hybrid Retriever: BM25 (lexical) + FAISS (semantic) → RRF fusion
       ├─ Prompt Builder: full 57-item catalog in system + top-10 hint in user msg
-      └─ Gemini 1.5 Flash (temp=0.1, JSON mode) → Parser → validated ChatResponse
+      └─ Groq Llama 3.3 70B (temp=0.1, JSON mode) → Parser → validated ChatResponse
 ```
 
 Full diagram → [ARCHITECTURE.md](ARCHITECTURE.md)
@@ -79,7 +79,7 @@ shl-recommender/
 ```bash
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # add GEMINI_API_KEY=your_key
+cp .env.example .env          # add GROQ_API_KEY=your_key
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -95,7 +95,7 @@ curl -X POST http://localhost:8000/chat \
 ```bash
 pytest tests/ -v                     # 35 tests, mocked LLM, ~10s
 pytest tests/ -v -k "TestRecallAtK"  # Recall@10 self-evaluation
-pytest tests/ -v --live              # live LLM tests (needs GEMINI_API_KEY)
+pytest tests/ -v --live              # live LLM tests (needs GROQ_API_KEY)
 ```
 
 ## Local Evaluation
@@ -110,11 +110,11 @@ python scripts/evaluate.py --endpoint http://localhost:8000  # against server
 **Fly.io** (recommended — no cold-start):
 ```bash
 fly launch --name shl-recommender --no-deploy
-fly secrets set GEMINI_API_KEY=your_key
+fly secrets set GROQ_API_KEY=your_key
 fly deploy
 ```
 
-**Render.com:** connect repo → Docker → set `GEMINI_API_KEY`. Uses `render.yaml`.
+**Render.com:** connect repo → Docker → set `GROQ_API_KEY`. Uses `render.yaml`.
 
 ## Response Schema
 

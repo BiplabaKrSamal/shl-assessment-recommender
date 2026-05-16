@@ -20,7 +20,7 @@ User Request (POST /chat)
        │
        ├──► [Hybrid Retriever]  ← BM25 + FAISS → RRF fusion → top-10 context
        │
-       └──► [LLM (Gemini 1.5 Flash)]  ← System prompt + catalog + retrieval hint
+       └──► [LLM (Groq 1.5 Flash)]  ← System prompt + catalog + retrieval hint
                    │
                    ▼
           [Response Parser]  ← Strict JSON validation, URL allowlist check
@@ -68,7 +68,7 @@ The full catalog (~60 items) is embedded in the **system prompt** once at startu
 
 ### Schema Enforcement
 
-The system prompt specifies the output JSON schema three times: in the rules section, in the output format section, and Gemini's `response_mime_type="application/json"` activates native JSON mode. The parser then validates: URL prefix, test_type allowlist, deduplication, and 10-item cap. On parse failure, a safe fallback is returned — the evaluator always gets valid JSON.
+The system prompt specifies the output JSON schema three times: in the rules section, in the output format section, and Groq's `response_mime_type="application/json"` activates native JSON mode. The parser then validates: URL prefix, test_type allowlist, deduplication, and 10-item cap. On parse failure, a safe fallback is returned — the evaluator always gets valid JSON.
 
 ### Temperature
 
@@ -105,7 +105,7 @@ Key probes tested locally:
 | Component | Choice | Why |
 |-----------|--------|-----|
 | API Framework | FastAPI + Pydantic v2 | Schema enforcement is built-in; 422 on wrong shape |
-| LLM | Gemini 1.5 Flash | 60 req/min free tier, 1M context, JSON mode, fast |
+| LLM | Groq 1.5 Flash | 60 req/min free tier, 1M context, JSON mode, fast |
 | Embeddings | all-MiniLM-L6-v2 | 22MB, CPU-fast, good enough for 60-item catalog |
 | Vector Store | FAISS IndexFlatIP | In-process, no external service, instant for N=60 |
 | Lexical Search | BM25 (pure Python) | No dependencies, handles exact product name recall |
