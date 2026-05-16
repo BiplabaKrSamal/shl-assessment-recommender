@@ -110,7 +110,7 @@ def build_retrieval_context(retrieved: list[dict]) -> str:
 def build_system_prompt(all_assessments: list[dict]) -> str:
     """Build the full system prompt with entire catalog embedded."""
     catalog_context = build_catalog_context(all_assessments)
-    return SYSTEM_PROMPT.format(catalog_context=catalog_context)
+    return SYSTEM_PROMPT.replace("{catalog_context}", catalog_context)
 
 
 def build_messages_for_llm(
