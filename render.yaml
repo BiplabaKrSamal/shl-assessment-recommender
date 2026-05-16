@@ -1,0 +1,36 @@
+# render.yaml — Render.com deployment manifest
+# Deploy: connect repo to Render, it reads this file automatically.
+# Free tier: 512MB RAM, sleeps after 15min inactivity (2min wake allowed by spec)
+
+services:
+  - type: web
+    name: shl-recommender
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    
+    # Free tier is sufficient for the evaluator (single-threaded, low RPS)
+    plan: free
+    
+    # Health check path — evaluator hits this first
+    healthCheckPath: /health
+    
+    # Environment variables (set sensitive ones in Render dashboard)
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false          # Must be set manually in Render dashboard
+      - key: GEMINI_MODEL
+        value: gemini-1.5-flash
+      - key: CATALOG_PATH
+        value: /app/data/catalog.json
+      - key: PORT
+        value: "8000"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    
+    # Autoscaling disabled on free tier
+    scaling:
+      minInstances: 1
+      maxInstances: 1
+    
+    # Build timeout — model download can take time on first build
+    buildTimeoutSeconds: 600

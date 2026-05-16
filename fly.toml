@@ -1,0 +1,40 @@
+# fly.toml — Fly.io deployment config
+# Deploy: fly launch --name shl-recommender (then fly secrets set GEMINI_API_KEY=...)
+# Free tier: 3 shared VMs, 256MB each, no sleep (unlike Render free tier)
+# This is the PREFERRED deployment target for avoiding cold-start issues.
+
+app = "shl-recommender"
+primary_region = "sin"  # Singapore — closest to SHL evaluator servers
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = false   # Never sleep — critical for 30s timeout compliance
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+[env]
+  CATALOG_PATH = "/app/data/catalog.json"
+  GEMINI_MODEL = "gemini-1.5-flash"
+  PORT = "8000"
+  PYTHONUNBUFFERED = "1"
+
+# Health check — Fly monitors this
+[[services.http_checks]]
+  interval = "15s"
+  timeout = "10s"
+  grace_period = "120s"
+  method = "GET"
+  path = "/health"
