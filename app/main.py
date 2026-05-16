@@ -66,12 +66,18 @@ async def lifespan(app: FastAPI):
     start = time.time()
 
     try:
+        # Validate critical env vars at startup — fail loud if missing
+        gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+        if not gemini_key:
+            logger.error("FATAL: GEMINI_API_KEY environment variable is not set!")
+            raise RuntimeError("GEMINI_API_KEY not set")
+        logger.info(f"GEMINI_API_KEY detected (prefix: {gemini_key[:8]}...)")
+
         _agent = SHLAgent(catalog_path=CATALOG_PATH)
         logger.info(
             f"Agent initialized in {time.time()-start:.2f}s. "
             f"Catalog: {len(_agent.retriever.get_all())} assessments."
         )
-        # Warm up FAISS index (build it now rather than on first request)
         _ = _agent.retriever.search("software developer cognitive ability", k=3)
         logger.info("Retriever warmed up.")
     except Exception as e:
