@@ -67,11 +67,11 @@ async def lifespan(app: FastAPI):
 
     try:
         # Validate critical env vars at startup — fail loud if missing
-        gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
-        if not gemini_key:
-            logger.error("FATAL: GEMINI_API_KEY environment variable is not set!")
-            raise RuntimeError("GEMINI_API_KEY not set")
-        logger.info(f"GEMINI_API_KEY detected (prefix: {gemini_key[:8]}...)")
+        groq_key = os.getenv("GROQ_API_KEY", "").strip()
+        if not groq_key:
+            logger.error("FATAL: GROQ_API_KEY environment variable is not set!")
+            raise RuntimeError("GROQ_API_KEY not set")
+        logger.info(f"GROQ_API_KEY detected (prefix: {groq_key[:8]}...)")
 
         _agent = SHLAgent(catalog_path=CATALOG_PATH)
         logger.info(
@@ -128,27 +128,31 @@ async def add_timing(request: Request, call_next):
 # ---------------------------------------------------------------------------
 @app.get("/debug")
 async def debug():
-    """Diagnose Gemini API connectivity — remove before production."""
-    from google import genai as genai_debug
-    from google.genai import types as gtypes
-    key = os.getenv("GEMINI_API_KEY", "").strip()
+    """Diagnose Groq API connectivity."""
+    import httpx as _httpx
+    key = os.getenv("GROQ_API_KEY", "").strip()
     result = {
         "key_set": bool(key),
         "key_prefix": key[:12] + "..." if key else "NOT SET",
-        "gemini_test": None,
+        "groq_test": None,
         "error": None,
     }
     if key:
         try:
-            c = genai_debug.Client(api_key=key)
-            resp = c.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=[gtypes.Content(role="user", parts=[gtypes.Part(text="Say OK")])],
+            r = _httpx.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json={"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": "Say OK"}], "max_tokens": 10},
+                timeout=15.0,
             )
-            result["gemini_test"] = "SUCCESS"
-            result["response"] = resp.text[:100]
+            if r.status_code == 200:
+                result["groq_test"] = "SUCCESS"
+                result["response"] = r.json()["choices"][0]["message"]["content"]
+            else:
+                result["groq_test"] = "FAILED"
+                result["error"] = f"HTTP {r.status_code}: {r.text[:200]}"
         except Exception as e:
-            result["gemini_test"] = "FAILED"
+            result["groq_test"] = "FAILED"
             result["error"] = str(e)[:300]
     return result
 
