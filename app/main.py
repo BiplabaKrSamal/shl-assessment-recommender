@@ -126,6 +126,30 @@ async def add_timing(request: Request, call_next):
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+@app.get("/debug")
+async def debug():
+    """Diagnose Gemini API connectivity — remove before production."""
+    import google.generativeai as genai_debug
+    key = os.getenv("GEMINI_API_KEY", "").strip()
+    result = {
+        "key_set": bool(key),
+        "key_prefix": key[:12] + "..." if key else "NOT SET",
+        "gemini_test": None,
+        "error": None,
+    }
+    if key:
+        try:
+            genai_debug.configure(api_key=key)
+            model = genai_debug.GenerativeModel("gemini-1.5-flash")
+            resp = model.generate_content("Say OK")
+            result["gemini_test"] = "SUCCESS"
+            result["response"] = resp.text[:100]
+        except Exception as e:
+            result["gemini_test"] = "FAILED"
+            result["error"] = str(e)[:300]
+    return result
+
+
 @app.get("/")
 async def root():
     """Root endpoint — confirms service is running."""
