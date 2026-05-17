@@ -147,3 +147,4 @@ def generate_response(
         return _fallback("Response took too long. Please try again.")
 
     return _parse(raw, valid_catalog_urls)
+# Groq LLM — llama-3.3-70b-versatile
